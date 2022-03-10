@@ -24,6 +24,7 @@ class recievePacket(threading.Thread):
         self.socket = socket
     
     def run(self):
+        global packet_queue,flag
         while True:
             if flag:
                 break
@@ -46,23 +47,29 @@ class processPacket(threading.Thread):
 
     def run(self):
         while True:
+            global packet_queue,flag
             if flag:
                 break
             try:
                 if not packet_queue.empty():
+                    print("here")
                     data,addr,recvTimestamp = packet_queue.get(timeout=1)
                     recvPacket = NTPPacket()
                     recvPacket.unpackData(data)
-                    timeStamp_high,timeStamp_low=recvPacket.getTxTimeStamp();
+                    print("recieve packet "+str(recvPacket))
+                    timeStamp_int,timeStamp_frac=recvPacket.getTxTimeStamp();
                     sendPacket = NTPPacket()
                     sendPacket.version = 3
                     sendPacket.mode = 4
-                    sendPacket.ref_timestamp = recvTimestamp-5
-                    sendPacket.orig_timestamp_high = timeStamp_high
-                    sendPacket.orig_timestamp_low = timeStamp_low
+                    sendPacket.ref_timestamp = recvTimestamp - 5 
+                    sendPacket.origin_timestamp_int_byte = timeStamp_int
+                    sendPacket.origin_timestamp_frac_byte = timeStamp_frac
                     sendPacket.recv_timestamp = recvTimestamp
                     sendPacket.tx_timestamp = time.time() + NTP.ntp_delta
-                    self.socket.sendto(sendPacket.packData(),addr)
+                    print("send packet "+str(sendPacket))
+                    packet = sendPacket.packData()
+                    print("packet in binary "+str(packet))
+                    self.socket.sendto(packet,addr)
             except Exception as e:
                 traceback.print_exc()
                 print(str(e))  
