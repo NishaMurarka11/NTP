@@ -41,25 +41,28 @@ class NTPPacket():
         try:
             unpacked_packet = struct.unpack(NTPPacket.packet,
                         packet[0:struct.calcsize(NTPPacket.packet)])
+
+            self.leap = unpacked_packet[0] >> 6 & 0x3
+            self.version = unpacked_packet[0] >> 3 & 0x7
+            self.mode = unpacked_packet[0] & 0x7
+            self.stratum = unpacked_packet[1]
+
+            self.ref_timestamp = unpacked_packet[7] + float(unpacked_packet[8])/2**32   
+
+            self.origin_timestamp_int_byte = unpacked_packet[9]
+            self.origin_timestamp_frac_byte = unpacked_packet[10]
+            self.orig_timestamp = unpacked_packet[9] + float(unpacked_packet[10])/2**32
+
+            self.recv_timestamp = unpacked_packet[11] + float(unpacked_packet[12])/2**32
+
+            self.tx_timestamp_int_byte = unpacked_packet[13]
+            self.tx_timestamp_frac_byte = unpacked_packet[14]
+            self.tx_timestamp = unpacked_packet[13] + float(unpacked_packet[14])/2**32
         except Exception as e:
+            traceback.print_exc()
             return (ERROR_CODE,str(e))   
         
-        self.leap = unpacked_packet[0] >> 6 & 0x3
-        self.version = unpacked_packet[0] >> 3 & 0x7
-        self.mode = unpacked_packet[0] & 0x7
-        self.stratum = unpacked_packet[1]
-
-        self.ref_timestamp = unpacked_packet[7] + float(unpacked_packet[8])/2**32	
-
-        self.origin_timestamp_int_byte = unpacked_packet[9]
-        self.origin_timestamp_frac_byte = unpacked_packet[10]
-        self.orig_timestamp = unpacked_packet[9] + float(unpacked_packet[10])/2**32
-
-        self.recv_timestamp = unpacked_packet[11] + float(unpacked_packet[12])/2**32
-
-        self.tx_timestamp_int_byte = unpacked_packet[13]
-        self.tx_timestamp_frac_byte = unpacked_packet[14]
-        self.tx_timestamp = unpacked_packet[13] + float(unpacked_packet[14])/2**32
+        
         
     def packData(self):
         try:

@@ -17,6 +17,7 @@ class NTP:
     system_epooch =  datetime.date(*time.gmtime(0)[0:3])
     ntp_epooch = datetime.date(1900,1,1)
     ntp_delta = (system_epooch - ntp_epooch).days * 24 * 3600
+    #ntp_delta = 0
 
 class recievePacket(threading.Thread):
     def __init__(self,socket):
