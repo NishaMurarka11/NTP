@@ -1,7 +1,6 @@
 # NTP
 Ntp server and client implementation
-description of how to compile and run your program. In addition, include 
-any limitations of your program – what works, what doesn’t, sources of potential errors, etc. 
+description of how to compile and run your program.
 
 ## How to compile :
   After installing necessary packages, python3 ntp_server.py will start the server and python3 ntp_client.py will start the client.
