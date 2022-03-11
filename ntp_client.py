@@ -19,11 +19,11 @@ class ntpClient():
 	#ntp_delta = 0
 	last_server_response_time = 0
 	local_time_of_pkt_recv = 0
-	# host = "0.0.0.0" # The server.
-	host = "pool.ntp.org"
-	# host = "192.168.0.6"
-	# port = 22222 # Port.
-	port = 123
+	host = "0.0.0.0" # The server.
+	#host = "pool.ntp.org"
+	#host = "192.168.0.6"
+	port = 22222 # Port.
+	#port = 123
 	read_buffer = 1024 # The size of the buffer to read in the received UDP packet.
 	address = ( host, port ) # Tuple needed by sendto.
 	stats_dict = {}
@@ -32,7 +32,12 @@ class ntpClient():
 	calls = 0;
 	global job
 	counter = 15
+	MAX_RETRY = 3
+	retry = 0
 
+
+	def __init__(self) -> None:
+    		socket.setdefaulttimeout(10)
 
 
 	def createPacket(self):
@@ -47,22 +52,31 @@ class ntpClient():
 		return pkt
 
 	def sendPacket(self,messageNumber, burst_no):
-		print("TIME: ",str(time.time))
-		pkt = self.createPacket()
-		pkt = pkt.packData()
-		print("Packet Byte"+str(pkt))
-		client = socket.socket( AF_INET, SOCK_DGRAM )
-		client.sendto( pkt, self.address ) 
-		data, address = client.recvfrom( self.read_buffer )
-		self.local_time_of_pkt_recv = time.time() + self.ntp_delta
-		responsePkt = NTPPacket()
-		print("Data "+ str(data))
-		responsePkt.unpackData(data)
-		meta_lis = self.calculateDispersion(responsePkt,messageNumber,burst_no)
-		print("Response "+ str(responsePkt))
-		last_server_response_time = responsePkt.tx_timestamp
-		self.displayResponse(responsePkt)
-		return meta_lis
+		try:
+			print("TIME: {} {} {} ".format(str(time.time),str(messageNumber),str(burst_no)))
+			pkt = self.createPacket()
+			pkt = pkt.packData()
+			print("Packet Byte"+str(pkt))
+			client = socket.socket( AF_INET, SOCK_DGRAM )
+			#client.setblocking(False)
+			client.sendto( pkt, self.address ) 
+			data, address = client.recvfrom( self.read_buffer )
+			self.local_time_of_pkt_recv = time.time() + self.ntp_delta
+			responsePkt = NTPPacket()
+			print("Data "+ str(data))
+			responsePkt.unpackData(data)
+			meta_lis = self.calculateDispersion(responsePkt,messageNumber,burst_no)
+			print("Response "+ str(responsePkt))
+			last_server_response_time = responsePkt.tx_timestamp
+			self.displayResponse(responsePkt)
+			return meta_lis
+		except socket.timeout as e:
+			print("timeout for message"+str(messageNumber)+" "+str(burst_no))
+			self.retry = self.retry + 1
+			if self.retry >= self.MAX_RETRY:
+				print("returning timeout")
+				return (-1,"Timeout")
+			return self.sendPacket(messageNumber,burst_no)
 
 
 		# scheduler = sched.scheduler(time.time, 
@@ -186,17 +200,30 @@ class ntpClient():
 		for i in range (8):
 			meta_lis = self.sendPacket(i,self.burst_no)
 			# Storing delay and offset as a pair, to calculate minimum delay at the end of the burst
+			if meta_lis[0] == -1:
+				print("Check ")
+				schedule.cancel_job(self.job)
+				self.calls = self.counter + 1
+				break
 			delay_offest_pair_lis.append((meta_lis[0], meta_lis[1]))
 
 		#  sort by delay
-		delay_offest_pair_lis.sort(key=lambda x:x[0])
+		
 		
 		# take the smallest delay and corresponding offeset 
-		min_delay = delay_offest_pair_lis[0][0]
-		min_offest = delay_offest_pair_lis[0][1]
+		if delay_offest_pair_lis:
+			delay_offest_pair_lis.sort(key=lambda x:x[0])
+			min_delay = delay_offest_pair_lis[0][0]
+			min_offest = delay_offest_pair_lis[0][1]
+			self.min_delay_map[self.burst_no] = ((min_delay,min_offest))	
+		else:
+			print("No Message delivered")
+			return
+		
+		
 		# Setting the min delay offset pair to a map with burst number as the key
 
-		self.min_delay_map[self.burst_no] = ((min_delay,min_offest))
+		
 
 
 	def schedule(self):

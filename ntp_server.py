@@ -11,6 +11,7 @@ import traceback
 packet_queue = queue.Queue()
 flag = False
 ERROR_CODE = -1
+packet_served = 0
 
 
 class NTP:
@@ -25,7 +26,7 @@ class recievePacket(threading.Thread):
         self.socket = socket
     
     def run(self):
-        global packet_queue,flag
+        global packet_queue,flag,packet_served
         while True:
             if flag:
                 break
@@ -33,6 +34,9 @@ class recievePacket(threading.Thread):
                 readable,writable,exceptional = select.select([self.socket],[],[],1);
                 if len(readable) != 0:
                     for tempSocket in readable:
+                        # if packet_served > 3:
+                        #     return
+                        packet_served = packet_served + 1
                         data,addr = tempSocket.recvfrom(1024)
                         server_recieve_timestamp = time.time() + NTP.ntp_delta
                         packet_queue.put((data,addr,server_recieve_timestamp))
