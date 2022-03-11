@@ -5,10 +5,10 @@ import struct, time
 from NTPPacket import NTPPacket
 import time
 import datetime
-import sched
 import queue
 import schedule
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 
 
@@ -19,11 +19,11 @@ class ntpClient():
 	#ntp_delta = 0
 	last_server_response_time = 0
 	local_time_of_pkt_recv = 0
-	host = "0.0.0.0" # The server.
-	#host = "pool.ntp.org"
+	# host = "0.0.0.0" # The server.
+	host = "pool.ntp.org"
 	# host = "192.168.0.6"
-	port = 22222 # Port.
-	#port = 123
+	# port = 22222 # Port.
+	port = 123
 	read_buffer = 1024 # The size of the buffer to read in the received UDP packet.
 	address = ( host, port ) # Tuple needed by sendto.
 	stats_dict = {}
@@ -31,7 +31,7 @@ class ntpClient():
 	min_delay_map = {}
 	calls = 0;
 	global job
-	counter = 8
+	counter = 15
 
 
 
@@ -77,7 +77,7 @@ class ntpClient():
 		# schedule.run_pending()
 
 	def updateData(self,messageNumber,burst_no,meta_lis):
-		key  = str(messageNumber)+"__"+str(burst_no)
+		key  = str(messageNumber)+","+str(burst_no)
 		self.stats_dict[key] = meta_lis
 
 
@@ -115,12 +115,64 @@ class ntpClient():
 		x, y = zip(*lists) # unpack a list of pairs into two tuples
 		print("X "+ str(x))
 		print("Y "+ str(y))
-		plt.plot(x, y)
-		plt.xlabel('<burst_no #, message_pair#>')
-		plt.ylabel('Delay , Offset, delta, theta')
+		objects = plt.plot(x, y)
+		plt.xlabel('Burst_no #, message_pair')
+		plt.ylabel('Delay , Offset')
+		plt.legend(iter(objects), ('Delay', 'Offset') , loc="upper left")
 		plt.show()
 
-		
+		lists2 = sorted(min_delay_map.items())
+		x, y = zip(*lists) # unpack a list of pairs into two tuples
+		object2 = plt.plot(x, y)
+		plt.xlabel('Burst_no')
+		plt.ylabel('Delta , theta')
+		plt.legend(iter(object2), ('Delta', 'theta'))
+		plt.show()
+
+	
+	def plotFunction(self,stats_dict,min_delay_map):
+
+		lists = sorted(stats_dict.items()) # sorted by key, return a list of tuples
+		print("Lists"+ str(lists))
+		x, y = zip(*lists) # unpack a list of pairs into two tuples
+		delay, offset = map(list, zip(*y))
+		print("X "+ str(x))
+		print("Y "+ str(y))
+		# objects = plt.plot(x, y)
+
+
+		lists2 = sorted(min_delay_map.items())
+		x2, y2 = zip(*lists2) # unpack a list of pairs into two tuples
+		delta, theta = map(list, zip(*y2))
+		# plt.xlabel('Burst_no')
+		# plt.ylabel('Delta , theta')
+		# plt.legend(iter(object2), ('Delta', 'theta'))
+		# plt.show()
+
+
+		figure, axis = plt.subplots(2, 2)
+		# ax = plt.axes()
+		# ax.xaxis.set_major_locator(ticker.MultipleLocator(5))
+  
+		# For Sine Function
+		axis[0, 0].plot(x, delay, '-r')
+		axis[0, 0].set_title("Burst_no #, message_pair vs Delay (di)")
+		  
+		# For Cosine Function
+		axis[0, 1].plot(x, offset, '-g')
+		axis[0, 1].set_title("Burst_no #, message_pair vs offset (oi)")
+		  
+		# For Tangent Function
+		axis[1, 0].plot(x2, delta, '-b')
+		axis[1, 0].set_title("Burst_no # vs delta")
+		  
+		# For Tanh Function
+		axis[1, 1].plot(x2, theta, 'm')
+		axis[1, 1].set_title("Burst_no # vs theta")
+		  
+		# Combine all the operations and display
+		plt.show()
+
 
 	def sendBurstPackets(self):
 		self.calls = self.calls+1
@@ -147,7 +199,6 @@ class ntpClient():
 		self.min_delay_map[self.burst_no] = ((min_delay,min_offest))
 
 
-
 	def schedule(self):
 		self.job = schedule.every(4).seconds.do(self.sendBurstPackets)
 		# scheduler.enter(2, 1,  
@@ -163,7 +214,7 @@ class ntpClient():
 		print("CALLS "+ str(self.calls))
 		print("Stats Dict :", str(self.stats_dict))
 		print("Min Delay per burst "+ str(self.min_delay_map))
-		self.plotAll(self.stats_dict,self.min_delay_map)
+		self.plotFunction(self.stats_dict,self.min_delay_map)
 
 
 client = ntpClient()
