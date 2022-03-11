@@ -1,23 +1,15 @@
-from socket import AF_INET, SOCK_DGRAM # For setting up the UDP packet.
+from socket import AF_INET, SOCK_DGRAM
 import sys
 import socket
-import struct, time # To unpack the packet sent back and to convert the seconds to a string.
+import struct, time 
 from NTPPacket import NTPPacket
 import time
 import datetime
+import sched
+import queue
+import schedule
+import matplotlib.pyplot as plt
 
-
-
-# data = '\x1b' + 47 * '\0' # Hex message to send to the server.
-
-# epoch = 2208988800L # Time in seconds since Jan, 1970 for UNIX epoch.
-
-
-# t = struct.unpack( "!12I", data )[ 10 ] # Unpack the binary data and get the seconds out.
-
-# t -= epoch; # Calculate seconds since the epoch.
-
-# print("Time = %s" % time.ctime( t )) # Print the seconds as a formatted string.
 
 
 class ntpClient():
@@ -29,10 +21,17 @@ class ntpClient():
 	local_time_of_pkt_recv = 0
 	host = "0.0.0.0" # The server.
 	#host = "pool.ntp.org"
+	# host = "192.168.0.6"
 	port = 22222 # Port.
 	#port = 123
 	read_buffer = 1024 # The size of the buffer to read in the received UDP packet.
 	address = ( host, port ) # Tuple needed by sendto.
+	stats_dict = {}
+	burst_no = 0
+	min_delay_map = {}
+	calls = 0;
+	global job
+	counter = 8
 
 
 
@@ -43,11 +42,12 @@ class ntpClient():
 		pkt.orig_timestamp= self.last_server_response_time
 		pkt.recv_timestamp= self.local_time_of_pkt_recv  
 		pkt.tx_timestamp = time.time() + self.ntp_delta
-		print("sent time" +str(pkt.tx_timestamp))
-		print("Packet Tuple"+str(pkt))
+		print("sent time " +str(pkt.tx_timestamp))
+		print("Packet Tuple "+str(pkt))
 		return pkt
 
-	def sendPacket(self):
+	def sendPacket(self,messageNumber, burst_no):
+		print("TIME: ",str(time.time))
 		pkt = self.createPacket()
 		pkt = pkt.packData()
 		print("Packet Byte"+str(pkt))
@@ -58,14 +58,32 @@ class ntpClient():
 		responsePkt = NTPPacket()
 		print("Data "+ str(data))
 		responsePkt.unpackData(data)
-
-		self.calculateDispersion(responsePkt)
-
+		meta_lis = self.calculateDispersion(responsePkt,messageNumber,burst_no)
 		print("Response "+ str(responsePkt))
 		last_server_response_time = responsePkt.tx_timestamp
 		self.displayResponse(responsePkt)
+		return meta_lis
 
-	def calculateDispersion(self, responsePkt):
+
+		# scheduler = sched.scheduler(time.time, 
+  #                           time.sleep)
+
+				# change 2 to 4 and seconds to minutes
+		
+		# 1 hour period (8 packet burst every 4mins) - calcularte min(delta) and min(offset)
+		
+		# schedule.every(4).seconds.do(self.sendPacket())
+
+		# schedule.run_pending()
+
+	def updateData(self,messageNumber,burst_no,meta_lis):
+		key  = str(messageNumber)+"__"+str(burst_no)
+		self.stats_dict[key] = meta_lis
+
+
+
+
+	def calculateDispersion(self, responsePkt,messageNumber,burst_no):
 		t1 = responsePkt.orig_timestamp 
 		t2 = responsePkt.recv_timestamp 
 		t3 = responsePkt.tx_timestamp 
@@ -76,23 +94,80 @@ class ntpClient():
 		print("t4 "+ str(t4))
 		delta = ((t4-t1) - (t3-t2))
 		offset = 0.5*((t2-t1) + (t3-t4))
-
 		print("Delta "+ str(delta))
 		print("Offset "+str(offset))
-
-
+		meta_lis = []
+		meta_lis.append(delta)
+		meta_lis.append(offset)
+		self.updateData(messageNumber,burst_no,meta_lis)
+		return meta_lis
+		
 
 	def displayResponse(self,responsePkt):
-		print("Origin TimeStamp "+ time.ctime(responsePkt.orig_timestamp+self.ntp_delta))
+		print("Origin TimeStamp "+ time.ctime(responsePkt.orig_timestamp-self.ntp_delta))
+		print("Transit TimeStamp "+time.ctime(responsePkt.tx_timestamp-self.ntp_delta))
+		print("Receive TimeStamp "+ time.ctime(responsePkt.recv_timestamp-self.ntp_delta))
 
-		print("Transit TimeStamp "+time.ctime(responsePkt.tx_timestamp+self.ntp_delta))
 
-		print("Receive TimeStamp "+ time.ctime(responsePkt.recv_timestamp+self.ntp_delta))
+	def plotAll(self,stats_dict,min_delay_map):
+		lists = sorted(stats_dict.items()) # sorted by key, return a list of tuples
+		print("Lists"+ str(lists))
+		x, y = zip(*lists) # unpack a list of pairs into two tuples
+		print("X "+ str(x))
+		print("Y "+ str(y))
+		plt.plot(x, y)
+		plt.xlabel('<burst_no #, message_pair#>')
+		plt.ylabel('Delay , Offset, delta, theta')
+		plt.show()
 
+		
+
+	def sendBurstPackets(self):
+		self.calls = self.calls+1
+		if(self.calls>self.counter):
+			schedule.cancel_job(self.job)
+			return
+
+		
+		self.burst_no = self.burst_no+1
+		delay_offest_pair_lis = []
+		for i in range (8):
+			meta_lis = self.sendPacket(i,self.burst_no)
+			# Storing delay and offset as a pair, to calculate minimum delay at the end of the burst
+			delay_offest_pair_lis.append((meta_lis[0], meta_lis[1]))
+
+		#  sort by delay
+		delay_offest_pair_lis.sort(key=lambda x:x[0])
+		
+		# take the smallest delay and corresponding offeset 
+		min_delay = delay_offest_pair_lis[0][0]
+		min_offest = delay_offest_pair_lis[0][1]
+		# Setting the min delay offset pair to a map with burst number as the key
+
+		self.min_delay_map[self.burst_no] = ((min_delay,min_offest))
+
+
+
+	def schedule(self):
+		self.job = schedule.every(4).seconds.do(self.sendBurstPackets)
+		# scheduler.enter(2, 1,  
+		#                    self.sendPacket)
+		# schedule.cancel_job(job)
+		count = 0;	
+		while(True):
+			schedule.run_pending()
+			time.sleep(1)
+			if self.calls>self.counter:
+				break
+
+		print("CALLS "+ str(self.calls))
+		print("Stats Dict :", str(self.stats_dict))
+		print("Min Delay per burst "+ str(self.min_delay_map))
+		self.plotAll(self.stats_dict,self.min_delay_map)
 
 
 client = ntpClient()
-client.sendPacket()
+client.schedule()
 
 
 
