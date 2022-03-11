@@ -9,6 +9,8 @@ import queue
 import schedule
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+from measurement import Metric
+# from sets import Set
 
 
 
@@ -33,9 +35,8 @@ class ntpClient():
 	global job
 	MAX_RETRY = 3
 	retry = 0
-	counter = 3
-	set_for_dup = {}
-
+	counter = 1
+	set_for_dup = set()
 
 	def __init__(self) -> None:
     		socket.setdefaulttimeout(10)
@@ -94,10 +95,10 @@ class ntpClient():
 		
 		# schedule.every(4).seconds.do(self.sendPacket())
 
-		# schedule.run_pending()
+		# schedule.run_pending() burst_no messageNumber
 
 	def updateData(self,messageNumber,burst_no,meta_lis):
-		key  = str(messageNumber)+","+str(burst_no)
+		key  = str(burst_no)+","+str(messageNumber)
 		self.stats_dict[key] = meta_lis
 
 
@@ -245,7 +246,9 @@ class ntpClient():
 		print("CALLS "+ str(self.calls))
 		print("Stats Dict :", str(self.stats_dict))
 		print("Min Delay per burst "+ str(self.min_delay_map))
-		self.plotFunction(self.stats_dict,self.min_delay_map)
+		# self.plotFunction(self.stats_dict,self.min_delay_map)
+		metric_append = Metric()
+		metric_append.populateSheet(self.stats_dict,self.min_delay_map)
 
 
 client = ntpClient()
