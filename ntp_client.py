@@ -21,11 +21,11 @@ class ntpClient():
 	#ntp_delta = 0
 	last_server_response_time = 0
 	local_time_of_pkt_recv = 0
-	host = "0.0.0.0" # The server.
-	#host = "pool.ntp.org"
-	#host = "192.168.0.6"
-	port = 22222 # Port.
-	#port = 123
+	#host = "34.136.64.155" # GCP server.
+	host = "pool.ntp.org"
+	#host = "192.168.0.8"
+	#port = 22222 # Port.
+	port = 123
 	read_buffer = 1024 # The size of the buffer to read in the received UDP packet.
 	address = ( host, port ) # Tuple needed by sendto.
 	stats_dict = {}
@@ -35,7 +35,7 @@ class ntpClient():
 	global job
 	MAX_RETRY = 3
 	retry = 0
-	counter = 1
+	counter = 15
 	set_for_dup = set()
 
 	def __init__(self) -> None:
@@ -85,17 +85,6 @@ class ntpClient():
 				print("returning timeout")
 				return (-1,"Timeout")
 			return self.sendPacket(messageNumber,burst_no)
-
-		# scheduler = sched.scheduler(time.time, 
-  #                           time.sleep)
-
-				# change 2 to 4 and seconds to minutes
-		
-		# 1 hour period (8 packet burst every 4mins) - calcularte min(delta) and min(offset)
-		
-		# schedule.every(4).seconds.do(self.sendPacket())
-
-		# schedule.run_pending() burst_no messageNumber
 
 	def updateData(self,messageNumber,burst_no,meta_lis):
 		key  = str(burst_no)+","+str(messageNumber)
@@ -163,16 +152,11 @@ class ntpClient():
 		lists2 = sorted(min_delay_map.items())
 		x2, y2 = zip(*lists2) # unpack a list of pairs into two tuples
 		delta, theta = map(list, zip(*y2))
-		# plt.xlabel('Burst_no')
-		# plt.ylabel('Delta , theta')
-		# plt.legend(iter(object2), ('Delta', 'theta'))
-		# plt.show()
+
 
 
 		figure, axis = plt.subplots(2, 2)
-		# ax = plt.axes()
-		# ax.xaxis.set_major_locator(ticker.MultipleLocator(5))
-  
+
 		# For Sine Function
 		axis[0, 0].plot(x, delay, '-r')
 		axis[0, 0].set_title("Burst_no #, message_pair vs Delay (di)")
@@ -232,10 +216,7 @@ class ntpClient():
 
 
 	def schedule(self):
-		self.job = schedule.every(4).seconds.do(self.sendBurstPackets)
-		# scheduler.enter(2, 1,  
-		#                    self.sendPacket)
-		# schedule.cancel_job(job)
+		self.job = schedule.every(4).minutes.do(self.sendBurstPackets)
 		count = 0;	
 		while(True):
 			schedule.run_pending()
@@ -246,7 +227,7 @@ class ntpClient():
 		print("CALLS "+ str(self.calls))
 		print("Stats Dict :", str(self.stats_dict))
 		print("Min Delay per burst "+ str(self.min_delay_map))
-		# self.plotFunction(self.stats_dict,self.min_delay_map)
+		self.plotFunction(self.stats_dict,self.min_delay_map)
 		metric_append = Metric()
 		metric_append.populateSheet(self.stats_dict,self.min_delay_map)
 
