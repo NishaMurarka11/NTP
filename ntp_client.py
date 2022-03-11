@@ -31,9 +31,10 @@ class ntpClient():
 	min_delay_map = {}
 	calls = 0;
 	global job
-	counter = 15
 	MAX_RETRY = 3
 	retry = 0
+	counter = 3
+	set_for_dup = {}
 
 
 	def __init__(self) -> None:
@@ -65,6 +66,12 @@ class ntpClient():
 			responsePkt = NTPPacket()
 			print("Data "+ str(data))
 			responsePkt.unpackData(data)
+			if responsePkt.orig_timestamp in self.set_for_dup:
+				print("Dupliate pack recv, discard")
+				return
+			else:
+				self.set_for_dup.add(responsePkt.orig_timestamp)
+
 			meta_lis = self.calculateDispersion(responsePkt,messageNumber,burst_no)
 			print("Response "+ str(responsePkt))
 			last_server_response_time = responsePkt.tx_timestamp
@@ -77,7 +84,6 @@ class ntpClient():
 				print("returning timeout")
 				return (-1,"Timeout")
 			return self.sendPacket(messageNumber,burst_no)
-
 
 		# scheduler = sched.scheduler(time.time, 
   #                           time.sleep)
@@ -93,8 +99,6 @@ class ntpClient():
 	def updateData(self,messageNumber,burst_no,meta_lis):
 		key  = str(messageNumber)+","+str(burst_no)
 		self.stats_dict[key] = meta_lis
-
-
 
 
 	def calculateDispersion(self, responsePkt,messageNumber,burst_no):
