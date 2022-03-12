@@ -15,17 +15,17 @@ description of how to compile and run your program.
   In case of NTP sever we are open UDP socket with two threads, the first thread recieves packets and places it in a queue, the second thread pops the packet from the queue and does the processing. The NTP packet class has the fields for unpacking and packing a packet.
 
 ## PACKAGES USED
-python socket - UDP socket 
-matplotlib - ploting data metric
-schedule - Creating a scheduler to run a code in regular interval
-datetime -  for converting epoch into datatime
-struct -  for packing and unpacking of byte data into object
-traceback -  for exception handling and trace
+python socket - UDP socket. 
+matplotlib - ploting data metric.
+schedule - Creating a scheduler to run a code in regular interval.
+datetime -  for converting epoch into datatime.
+struct -  for packing and unpacking of byte data into object.
+traceback -  for exception handling and trace.
 ## RESULTS:
 
-All the plots are in the file Graphs.pdf
+All the plots are in the file Graphs.pdf.
 All the offset and delay metrics are populated in three different .xlsx files:
 
-GCP.xlsx [server at GCP, Local client]
-LAN.xlsx [server and client in the same LAN]
-ntp.xlsx [NTP server ("pool.ntp.org")  and local client ]
+GCP.xlsx [server at GCP, Local client].
+LAN.xlsx [server and client in the same LAN].
+ntp.xlsx [NTP server ("pool.ntp.org")  and local client ].
