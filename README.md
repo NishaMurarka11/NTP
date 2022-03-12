@@ -29,3 +29,17 @@ All the offset and delay metrics are populated in three different .xlsx files: <
 GCP.xlsx [server at GCP, Local client] <br/>
 LAN.xlsx [server and client in the same LAN] <br/>
 ntp.xlsx [NTP server ("pool.ntp.org")  and local client ] <br/>
+
+
+##  The shorter and more symmetric the round-trip time is, the more accurate the estimate of the current time will be. 
+
+Synchronizing a client to a network server consists of several packet exchanges where each exchange is a pair of request and reply. When sending out a request, the client stores its own time (originate timestamp) into the packet being sent. When a server receives such a packet, it will in turn store its own time (receive timestamp) into the packet, and the packet will be returned after putting a transmit timestamp into the packet. When receiving the reply, the receiver will once more log its own receipt time to estimate the travelling time of the packet. The travelling time (delay) is estimated to be half of "the total delay minus remote processing time", assuming symmetrical delays. [Definition from NTP]
+
+We can conclude from our plot when the delay is less i.e shorter round trips than the offset decreases which leads to lesser delta on the local time and the server time. Since in our dispersion (maximum offset error) calculation we assume a symmetric round trip will decrease the offset error and we can conclude that the local time calculated will be more closer to the actual server time. 
+
+
+From the above figure we can see in case of LAN since the round trip is shorter we can see more consistent data.
+The delay and offset is less as compared to server running in GCP and NTP server. Also in NTP we can experience regular timeouts since we are hitting lower stratum servers.
+
+
+
